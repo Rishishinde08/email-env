@@ -26,11 +26,16 @@
 #     echoed_message: str = Field(default="", description="The echoed message")
 #     message_length: int = Field(default=0, description="Length of the echoed message")
 
-
 from pydantic import BaseModel
+from typing import Optional, Dict, Any
+
+
+class EmailAction(BaseModel):
+    action: str
+
 
 class EmailObservation(BaseModel):
     email_text: str
-
-class EmailAction(BaseModel):
-    action: str  # spam / urgent / normal
+    reward: float = 0.0
+    done: bool = False
+    metadata: Optional[Dict[str, Any]] = None
