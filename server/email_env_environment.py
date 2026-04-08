@@ -4,7 +4,7 @@ from openenv.core.env_server.interfaces import Environment
 from openenv.core.env_server.types import State
 
 from models import EmailObservation, EmailAction
-from tasks import TASKS
+from tasks import TASKS   # 🔥 IMPORTANT
 
 
 class EmailEnvironment(Environment):
@@ -13,41 +13,50 @@ class EmailEnvironment(Environment):
 
     def __init__(self):
         self._state = State(episode_id=str(uuid4()), step_count=0)
-        self.task_keys = list(TASKS.keys())
-        self.current_task = None
-        self.current_task_name = None
+
+        # predefined tasks
+        self.tasks_data = [
+            ("easy_spam_detection", "Win a FREE iPhone now!!!", "spam"),
+            ("medium_classification", "Meeting at 5 PM today", "urgent"),
+            ("hard_classification", "Lunch tomorrow?", "normal"),
+        ]
+
+        self.task_index = 0
+        self.current = None
 
     def reset(self) -> EmailObservation:
         self._state = State(episode_id=str(uuid4()), step_count=0)
 
-        idx = self._state.step_count % len(self.task_keys)
-        self.current_task_name = self.task_keys[idx]
-        self.current_task = TASKS[self.current_task_name]
+        self.current = self.tasks_data[self.task_index % len(self.tasks_data)]
+        self.task_index += 1
 
         return EmailObservation(
-            email_text=self.current_task["input"],
-            reward=0.1,
+            email_text=self.current[1],
+            reward=0.5,
             done=False,
             metadata={
-                "task": self.current_task_name,
-                "expected": self.current_task["expected"]
+                "task": self.current[0],
+                "expected": self.current[2]
             }
         )
 
     def step(self, action: EmailAction) -> EmailObservation:
         self._state.step_count += 1
 
-        expected = self.current_task["expected"]
-        grader_fn = self.current_task["grader"]
+        task_name = self.current[0]
+        expected = self.current[2]
+
+        # 🔥 CRITICAL: use grader from TASKS
+        grader_fn = TASKS[task_name]["grader"]
 
         reward = grader_fn(action.action, expected)
 
         return EmailObservation(
-            email_text=self.current_task["input"],
+            email_text=self.current[1],
             reward=reward,
             done=True,
             metadata={
-                "task": self.current_task_name,
+                "task": task_name,
                 "expected": expected,
                 "predicted": action.action
             }
