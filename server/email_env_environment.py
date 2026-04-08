@@ -2,9 +2,30 @@ from uuid import uuid4
 
 from openenv.core.env_server.interfaces import Environment
 from openenv.core.env_server.types import State
+from openenv.core.rubrics.base import Rubric
+from openenv.core.rubrics.containers import RubricDict
 
 from models import EmailObservation, EmailAction
 from tasks import TASKS
+
+
+class TaskGrader(Rubric):
+    def __init__(self, grader_fn, expected):
+        super().__init__()
+        self.grader_fn = grader_fn
+        self.expected = expected
+
+    def forward(self, action: EmailAction, observation: EmailObservation) -> float:
+        return float(self.grader_fn(action.action, self.expected))
+
+
+class EmailEnvRubric(RubricDict):
+    def forward(self, action: EmailAction, observation: EmailObservation) -> float:
+        task_name = observation.metadata.get("task")
+        if task_name in self:
+            # Evaluate using the matching task rubric
+            return self[task_name](action, observation)
+        return 0.0
 
 
 class EmailEnvironment(Environment):
@@ -16,6 +37,13 @@ class EmailEnvironment(Environment):
         self._state = State(episode_id=str(uuid4()), step_count=0)
         self.task_index = 0
         self.current_task = None
+        
+        # Initialize the rubric with our tasks
+        rubrics = {}
+        for task in TASKS:
+            rubrics[task["name"]] = TaskGrader(task["grader"], task["expected"])
+            
+        self.rubric = EmailEnvRubric(rubrics)
 
     def reset(self, seed=None, episode_id=None, **kwargs) -> EmailObservation:
         super()._reset_rubric()
@@ -40,13 +68,10 @@ class EmailEnvironment(Environment):
         self._state.step_count += 1
 
         expected = self.current_task["expected"]
-        grader_fn = self.current_task["grader"]
-
-        reward = grader_fn(action.action, expected)
-
-        return EmailObservation(
+        
+        obs = EmailObservation(
             email_text=self.current_task["input"],
-            reward=reward,
+            reward=0.0,
             done=True,
             metadata={
                 "task": self.current_task["name"],
@@ -54,6 +79,12 @@ class EmailEnvironment(Environment):
                 "predicted": action.action
             }
         )
+
+        # Apply the unified rubric (routes to the current task rubric)
+        reward = self._apply_rubric(action, obs)
+        obs.reward = float(reward)
+
+        return obs
 
     @property
     def state(self) -> State:
