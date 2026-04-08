@@ -73,7 +73,6 @@
 #     def state(self) -> State:
 #         return self._state
 
-
 from uuid import uuid4
 
 from openenv.core.env_server.interfaces import Environment
@@ -98,6 +97,7 @@ class EmailEnvironment(Environment):
         # pick task sequentially
         task_name = self.task_keys[self._state.step_count % len(self.task_keys)]
         self.current_task = TASKS[task_name]
+        self.current_task_name = task_name
 
         return EmailObservation(
             email_text=self.current_task["input"],
@@ -122,6 +122,7 @@ class EmailEnvironment(Environment):
             reward=reward,
             done=True,
             metadata={
+                "task": self.current_task_name,
                 "expected": expected,
                 "predicted": action.action
             }

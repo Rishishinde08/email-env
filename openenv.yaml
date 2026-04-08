@@ -4,9 +4,20 @@ type: space
 runtime: fastapi
 app: server.app:app
 port: 8000
+
 description: Email Classification Environment
-entry_point: server.email_env_environment:EmailEnv
+
+entry_point: server.email_env_environment:EmailEnvironment
+
 tasks:
-  - easy_spam_detection
-  - medium_classification
-  - hard_classification
+  easy_spam_detection:
+    description: Detect spam emails
+    grader: grader.grade
+
+  medium_classification:
+    description: Classify urgent emails
+    grader: grader.grade
+
+  hard_classification:
+    description: Classify normal emails
+    grader: grader.grade
