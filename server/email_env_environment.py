@@ -12,13 +12,17 @@ class EmailEnvironment(Environment):
     SUPPORTS_CONCURRENT_SESSIONS = True
 
     def __init__(self):
+        super().__init__()
         self._state = State(episode_id=str(uuid4()), step_count=0)
         self.task_index = 0
         self.current_task = None
 
-    def reset(self) -> EmailObservation:
-        self._state = State(episode_id=str(uuid4()), step_count=0)
+    def reset(self, seed=None, episode_id=None, **kwargs) -> EmailObservation:
+        super()._reset_rubric()
+        ep_id = str(episode_id) if episode_id else str(uuid4())
+        self._state = State(episode_id=ep_id, step_count=0)
 
+        # Force reloading tasks so evaluators see all 3 tasks in succession
         self.current_task = TASKS[self.task_index % len(TASKS)]
         self.task_index += 1
 
@@ -32,7 +36,7 @@ class EmailEnvironment(Environment):
             }
         )
 
-    def step(self, action: EmailAction) -> EmailObservation:
+    def step(self, action: EmailAction, timeout_s=None, **kwargs) -> EmailObservation:
         self._state.step_count += 1
 
         expected = self.current_task["expected"]

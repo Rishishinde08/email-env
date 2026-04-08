@@ -36,6 +36,6 @@ class EmailAction(BaseModel):
 
 class EmailObservation(BaseModel):
     email_text: str
-    reward: float = 0.0
+    reward: float = 0.5
     done: bool = False
     metadata: Optional[Dict[str, Any]] = None
