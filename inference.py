@@ -12,25 +12,41 @@ MODEL_NAME = os.getenv("MODEL_NAME", "Qwen/Qwen2.5-72B-Instruct")
 
 env = EmailEnvironment()
 
-print(f"[START] task=email env=email_env model={MODEL_NAME}")
+tasks = [
+    ("easy_spam_detection", "spam"),
+    ("medium_classification", "urgent"),
+    ("hard_classification", "normal")
+]
 
-obs = env.reset()
+print(f"[START] task=multi env=email_env model={MODEL_NAME}")
 
-prompt = f"Classify this email: {obs.email_text} (spam/urgent/normal)"
+step_count = 0
+rewards = []
 
-response = client.chat.completions.create(
-    model=MODEL_NAME,
-    messages=[{"role": "user", "content": prompt}]
-)
+for task_name, expected in tasks:
+    obs = env.reset()
 
-action_text = response.choices[0].message.content.strip().lower()
+    prompt = f"Classify this email: {obs.email_text} (spam/urgent/normal)"
 
-action = EmailAction(action=action_text)
+    response = client.chat.completions.create(
+        model=MODEL_NAME,
+        messages=[{"role": "user", "content": prompt}]
+    )
 
-obs = env.step(action)
+    action_text = response.choices[0].message.content.strip().lower()
+    action = EmailAction(action=action_text)
 
-reward = obs.reward
-done = obs.done
+    obs = env.step(action)
 
-print(f"[STEP] step=1 action={action_text} reward={reward:.2f} done={str(done).lower()} error=null")
-print(f"[END] success=true steps=1 score={reward:.2f} rewards={reward:.2f}")
+    reward = obs.reward
+    done = obs.done
+
+    step_count += 1
+    rewards.append(reward)
+
+    print(f"[STEP] step={step_count} action={action_text} reward={reward:.2f} done={str(done).lower()} error=null")
+
+# average score
+score = sum(rewards) / len(rewards)
+
+print(f"[END] success=true steps={step_count} score={score:.2f} rewards={','.join([str(round(r,2)) for r in rewards])}")

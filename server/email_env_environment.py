@@ -4,6 +4,7 @@ from openenv.core.env_server.interfaces import Environment
 from openenv.core.env_server.types import State
 
 from models import EmailObservation, EmailAction
+from tasks import TASKS
 
 
 class EmailEnvironment(Environment):
@@ -12,46 +13,41 @@ class EmailEnvironment(Environment):
 
     def __init__(self):
         self._state = State(episode_id=str(uuid4()), step_count=0)
-        self.current = None
-
-        self.tasks = [
-            ("Win a FREE iPhone now!!!", "spam"),
-            ("Meeting at 5 PM today", "urgent"),
-            ("Lunch tomorrow?", "normal"),
-        ]
-
-        self.task_index = 0
+        self.task_keys = list(TASKS.keys())
+        self.current_task = None
+        self.current_task_name = None
 
     def reset(self) -> EmailObservation:
         self._state = State(episode_id=str(uuid4()), step_count=0)
 
-        self.current = self.tasks[self.task_index % len(self.tasks)]
-        self.task_index += 1
+        idx = self._state.step_count % len(self.task_keys)
+        self.current_task_name = self.task_keys[idx]
+        self.current_task = TASKS[self.current_task_name]
 
         return EmailObservation(
-            email_text=self.current[0],
+            email_text=self.current_task["input"],
             reward=0.1,
             done=False,
-            metadata={"expected": self.current[1]}
+            metadata={
+                "task": self.current_task_name,
+                "expected": self.current_task["expected"]
+            }
         )
 
     def step(self, action: EmailAction) -> EmailObservation:
         self._state.step_count += 1
 
-        expected = self.current[1]
+        expected = self.current_task["expected"]
+        grader_fn = self.current_task["grader"]
 
-        if action.action == expected:
-            reward = 0.9
-        elif action.action in ["spam", "urgent", "normal"]:
-            reward = 0.5
-        else:
-            reward = 0.1
+        reward = grader_fn(action.action, expected)
 
         return EmailObservation(
-            email_text=self.current[0],
+            email_text=self.current_task["input"],
             reward=reward,
             done=True,
             metadata={
+                "task": self.current_task_name,
                 "expected": expected,
                 "predicted": action.action
             }

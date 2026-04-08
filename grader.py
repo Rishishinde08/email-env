@@ -1,6 +1,14 @@
-def grade(predicted, expected):
+def grade_easy(predicted, expected):
+    if predicted == expected:
+        return 0.8
+    return 0.2
+
+def grade_medium(predicted, expected):
+    if predicted == expected:
+        return 0.85
+    return 0.3
+
+def grade_hard(predicted, expected):
     if predicted == expected:
         return 0.9
-    elif predicted in ["spam", "urgent", "normal"]:
-        return 0.5
-    return 0.1
+    return 0.4
