@@ -10,14 +10,17 @@ description: Email Classification Environment
 entry_point: server.email_env_environment:EmailEnvironment
 
 tasks:
-  easy_spam_detection:
-    description: Detect spam emails
-    grader: grader.grade
+  - name: easy_spam_detection
+    description: Detect spam email
+    input: "Win a FREE iPhone now!!!"
+    expected_output: "spam"
 
-  medium_classification:
-    description: Classify urgent emails
-    grader: grader.grade
+  - name: medium_classification
+    description: Detect urgent email
+    input: "Meeting at 5 PM today"
+    expected_output: "urgent"
 
-  hard_classification:
-    description: Classify normal emails
-    grader: grader.grade
+  - name: hard_classification
+    description: Detect normal email
+    input: "Lunch tomorrow?"
+    expected_output: "normal"
