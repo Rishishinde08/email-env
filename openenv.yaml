@@ -9,13 +9,5 @@ entry_point: server.email_env_environment:EmailEnvironment
 
 tasks:
   - id: easy_spam_detection
-    description: Easy spam detection
-    grader: default
-
   - id: medium_classification
-    description: Medium classification
-    grader: default
-
   - id: hard_classification
-    description: Hard classification
-    grader: default
