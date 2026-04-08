@@ -4,7 +4,7 @@ from openenv.core.env_server.interfaces import Environment
 from openenv.core.env_server.types import State
 
 from models import EmailObservation, EmailAction
-from tasks import TASKS   # 🔥 IMPORTANT
+from tasks import TASKS
 
 
 class EmailEnvironment(Environment):
@@ -14,7 +14,6 @@ class EmailEnvironment(Environment):
     def __init__(self):
         self._state = State(episode_id=str(uuid4()), step_count=0)
 
-        # predefined tasks
         self.tasks_data = [
             ("easy_spam_detection", "Win a FREE iPhone now!!!", "spam"),
             ("medium_classification", "Meeting at 5 PM today", "urgent"),
@@ -40,16 +39,14 @@ class EmailEnvironment(Environment):
             }
         )
 
+    # ✅ CORRECTLY INSIDE CLASS
     def step(self, action: EmailAction) -> EmailObservation:
         self._state.step_count += 1
 
         task_name = self.current[0]
         expected = self.current[2]
 
-        # 🔥 CRITICAL: use grader from TASKS
-        grader_fn = TASKS[task_name]["grader"]
-
-        reward = grader_fn(action.action, expected)
+        reward = TASKS[task_name](action.action, expected)
 
         return EmailObservation(
             email_text=self.current[1],
