@@ -13,47 +13,39 @@ class EmailEnvironment(Environment):
 
     def __init__(self):
         self._state = State(episode_id=str(uuid4()), step_count=0)
-
-        self.tasks_data = [
-            ("easy_spam_detection", "Win a FREE iPhone now!!!", "spam"),
-            ("medium_classification", "Meeting at 5 PM today", "urgent"),
-            ("hard_classification", "Lunch tomorrow?", "normal"),
-        ]
-
         self.task_index = 0
-        self.current = None
+        self.current_task = None
 
     def reset(self) -> EmailObservation:
         self._state = State(episode_id=str(uuid4()), step_count=0)
 
-        self.current = self.tasks_data[self.task_index % len(self.tasks_data)]
+        self.current_task = TASKS[self.task_index % len(TASKS)]
         self.task_index += 1
 
         return EmailObservation(
-            email_text=self.current[1],
+            email_text=self.current_task["input"],
             reward=0.5,
             done=False,
             metadata={
-                "task": self.current[0],
-                "expected": self.current[2]
+                "task": self.current_task["name"],
+                "expected": self.current_task["expected"]
             }
         )
 
-    # ✅ CORRECTLY INSIDE CLASS
     def step(self, action: EmailAction) -> EmailObservation:
         self._state.step_count += 1
 
-        task_name = self.current[0]
-        expected = self.current[2]
+        expected = self.current_task["expected"]
+        grader_fn = self.current_task["grader"]
 
-        reward = TASKS[task_name](action.action, expected)
+        reward = grader_fn(action.action, expected)
 
         return EmailObservation(
-            email_text=self.current[1],
+            email_text=self.current_task["input"],
             reward=reward,
             done=True,
             metadata={
-                "task": task_name,
+                "task": self.current_task["name"],
                 "expected": expected,
                 "predicted": action.action
             }
