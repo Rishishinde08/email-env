@@ -1,5 +1,4 @@
 from uuid import uuid4
-import random
 
 from openenv.core.env_server.interfaces import Environment
 from openenv.core.env_server.types import State
@@ -14,7 +13,8 @@ class EmailEnvironment(Environment):
     def __init__(self):
         self._state = State(episode_id=str(uuid4()), step_count=0)
 
-        self.emails = [
+        # ✅ 3 FIXED TASKS (VERY IMPORTANT)
+        self.tasks = [
             ("Win a FREE iPhone now!!!", "spam"),
             ("Meeting at 5 PM today", "urgent"),
             ("Lunch tomorrow?", "normal"),
@@ -22,18 +22,25 @@ class EmailEnvironment(Environment):
 
         self.current = None
         self.done = False
+        self.task_index = 0  # track task progression
 
     def reset(self) -> EmailObservation:
         self._state = State(episode_id=str(uuid4()), step_count=0)
 
-        self.current = random.choice(self.emails)
+        # ✅ cycle through tasks (NOT random)
+        self.current = self.tasks[self.task_index % len(self.tasks)]
+        self.task_index += 1
+
         self.done = False
 
         return EmailObservation(
             email_text=self.current[0],
-            reward=0.0,
+            reward=0.1,  # ⚠️ must NOT be 0
             done=False,
-            metadata={"correct_label": self.current[1]}
+            metadata={
+                "correct_label": self.current[1],
+                "task_id": self.task_index
+            }
         )
 
     def step(self, action: EmailAction) -> EmailObservation:
@@ -41,14 +48,14 @@ class EmailEnvironment(Environment):
 
         correct = self.current[1]
 
-        
-
+        # ✅ VALID REWARD RANGE (0 < reward < 1)
         if action.action == correct:
-         reward = 0.9
+            reward = 0.9
         elif action.action in ["spam", "urgent", "normal"]:
-         reward = 0.5
+            reward = 0.5
         else:
-         reward = 0.1
+            reward = 0.1
+
         self.done = True
 
         return EmailObservation(
@@ -57,7 +64,8 @@ class EmailEnvironment(Environment):
             done=True,
             metadata={
                 "correct_label": correct,
-                "predicted": action.action
+                "predicted": action.action,
+                "task_id": self.task_index
             }
         )
 

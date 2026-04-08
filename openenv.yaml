@@ -9,4 +9,4 @@ entry_point: server.email_env_environment:EmailEnv
 tasks:
   - easy_spam_detection
   - medium_classification
-  - hard_full_classification
+  - hard_classification
