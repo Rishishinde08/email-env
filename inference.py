@@ -146,7 +146,7 @@ for i in range(3):
 score = sum(rewards) / len(rewards) if rewards else 0.0
 score = max(0.0, min(score, 1.0))
 
-print(f"[END] success=true steps={steps} score={score:.2f} rewards={','.join([str(round(r,2)) for r in rewards])}")
+print(f"[END] success=true steps={steps} score={score:.2f} rewards={rewards}")
 
 
 
