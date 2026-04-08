@@ -1,6 +1,7 @@
 import os
 import requests
 import random
+import uuid
 from openai import OpenAI
 
 # 🔥 ENV VARIABLES (MANDATORY)
@@ -14,19 +15,19 @@ client = OpenAI(
     api_key=HF_TOKEN
 )
 
-# Local FastAPI server (OpenEnv uses this internally)
 BASE_URL = "http://localhost:8000"
-
-print(f"[START] task=email_classification env=email_env model={MODEL_NAME}")
 
 steps = 0
 rewards = []
 
-# 🔥 EXACTLY 3 TASKS REQUIRED
-for i in range(3):
+print(f"[START] task=email_classification env=email_env model={MODEL_NAME}")
 
-    # RESET ENV
-    res = requests.post(f"{BASE_URL}/reset")
+# 🔥 EXACTLY 3 TASKS
+for i in range(3):
+    episode_id = str(uuid.uuid4())
+
+    # RESET
+    res = requests.post(f"{BASE_URL}/reset", json={"episode_id": episode_id})
     obs = res.json()
 
     email_text = obs.get("email_text", "")
@@ -41,7 +42,6 @@ for i in range(3):
 
         action_text = response.choices[0].message.content.strip().lower()
 
-        # 🔥 CLEAN OUTPUT (VERY IMPORTANT)
         if "spam" in action_text:
             action_text = "spam"
         elif "urgent" in action_text:
@@ -52,7 +52,7 @@ for i in range(3):
     except Exception:
         action_text = "normal"
 
-    # STEP ENV
+    # STEP
     res = requests.post(
         f"{BASE_URL}/step",
         json={"action": action_text}
@@ -68,20 +68,24 @@ for i in range(3):
 
     print(f"[STEP] step={steps} action={action_text} reward={reward:.2f} done={str(done).lower()} error=null")
 
-# 🔥 FINAL SCORE (STRICTLY BETWEEN 0 AND 1)
+# 🔥 FINAL SCORE
 if rewards:
     score = sum(rewards) / len(rewards)
 else:
     score = 0.5
 
-# Clamp to (0,1) strictly
+# strictly (0,1)
 score = max(0.1, min(score, 0.9))
 
-# Small randomness to avoid edge cases
+# small randomness
 score += random.uniform(-0.05, 0.05)
 score = max(0.1, min(score, 0.9))
 
 print(f"[END] success=true steps={steps} score={score:.2f} rewards={rewards}")
+
+
+
+
 
 
 # import os

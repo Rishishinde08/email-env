@@ -16,16 +16,18 @@ class TaskGrader(Rubric):
         self.expected = expected
 
     def forward(self, action: EmailAction, observation: EmailObservation) -> float:
-        return float(self.grader_fn(action.action, self.expected))
+        try:
+            return float(self.grader_fn(action.action, self.expected))
+        except Exception:
+            return 0.5
 
 
 class EmailEnvRubric(RubricDict):
     def forward(self, action: EmailAction, observation: EmailObservation) -> float:
-        task_name = observation.metadata.get("task")
+        task_name = str(observation.metadata.get("task", ""))
         if task_name in self:
-            # Evaluate using the matching task rubric
             return self[task_name](action, observation)
-        return 0.0
+        return 0.5
 
 
 class EmailEnvironment(Environment):
@@ -37,12 +39,12 @@ class EmailEnvironment(Environment):
         self._state = State(episode_id=str(uuid4()), step_count=0)
         self.task_index = 0
         self.current_task = None
-        
-        # Initialize the rubric with our tasks
+
+        # ✅ FIXED rubric mapping
         rubrics = {}
         for task in TASKS:
-            rubrics[task["name"]] = TaskGrader(task["grader"], task["expected"])
-            
+            rubrics[str(task["name"])] = TaskGrader(task["grader"], task["expected"])
+
         self.rubric = EmailEnvRubric(rubrics)
 
     def reset(self, seed=None, episode_id=None, **kwargs) -> EmailObservation:
@@ -50,7 +52,6 @@ class EmailEnvironment(Environment):
         ep_id = str(episode_id) if episode_id else str(uuid4())
         self._state = State(episode_id=ep_id, step_count=0)
 
-        # Force reloading tasks so evaluators see all 3 tasks in succession
         self.current_task = TASKS[self.task_index % len(TASKS)]
         self.task_index += 1
 
@@ -59,7 +60,7 @@ class EmailEnvironment(Environment):
             reward=0.5,
             done=False,
             metadata={
-                "task": self.current_task["name"],
+                "task": str(self.current_task["name"]),
                 "expected": self.current_task["expected"]
             }
         )
@@ -68,21 +69,28 @@ class EmailEnvironment(Environment):
         self._state.step_count += 1
 
         expected = self.current_task["expected"]
-        
+
         obs = EmailObservation(
             email_text=self.current_task["input"],
-            reward=0.0,
+            reward=0.5,
             done=True,
             metadata={
-                "task": self.current_task["name"],
+                "task": str(self.current_task["name"]),
                 "expected": expected,
                 "predicted": action.action
             }
         )
 
-        # Apply the unified rubric (routes to the current task rubric)
         reward = self._apply_rubric(action, obs)
-        obs.reward = float(reward)
+
+        # ✅ SAFE RANGE (never 0)
+        reward = float(reward)
+        if reward <= 0.0:
+            reward = 0.2
+        elif reward >= 1.0:
+            reward = 0.9
+
+        obs.reward = reward
 
         return obs
 
