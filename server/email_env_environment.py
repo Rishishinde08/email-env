@@ -2,32 +2,9 @@ from uuid import uuid4
 
 from openenv.core.env_server.interfaces import Environment
 from openenv.core.env_server.types import State
-from openenv.core.rubrics.base import Rubric
-from openenv.core.rubrics.containers import RubricDict
 
 from models import EmailObservation, EmailAction
 from tasks import TASKS
-
-
-class TaskGrader(Rubric):
-    def __init__(self, grader_fn, expected):
-        super().__init__()
-        self.grader_fn = grader_fn
-        self.expected = expected
-
-    def forward(self, action: EmailAction, observation: EmailObservation) -> float:
-        try:
-            return float(self.grader_fn(action.action, self.expected))
-        except Exception:
-            return 0.5
-
-
-class EmailEnvRubric(RubricDict):
-    def forward(self, action: EmailAction, observation: EmailObservation) -> float:
-        task_name = str(observation.metadata.get("task", ""))
-        if task_name in self:
-            return self[task_name](action, observation)
-        return 0.5
 
 
 class EmailEnvironment(Environment):
@@ -40,16 +17,7 @@ class EmailEnvironment(Environment):
         self.task_index = 0
         self.current_task = None
 
-        # 🔥 IMPORTANT: RUBRIC REGISTER
-        rubrics = {}
-        for task in TASKS:
-            rubrics[str(task["name"])] = TaskGrader(task["grader"], task["expected"])
-
-        self.rubric = EmailEnvRubric(rubrics)
-        self._rubric = self.rubric   # 🔥 CRITICAL LINE
-
-    def reset(self, seed=None, episode_id=None, **kwargs) -> EmailObservation:
-        super()._reset_rubric()
+    def reset(self, seed=None, episode_id=None, **kwargs):
         ep_id = str(episode_id) if episode_id else str(uuid4())
         self._state = State(episode_id=ep_id, step_count=0)
 
@@ -61,42 +29,33 @@ class EmailEnvironment(Environment):
             reward=0.5,
             done=False,
             metadata={
-                "task": str(self.current_task["name"]),
-                "expected": self.current_task["expected"]
+                "task": self.current_task["name"]
             }
         )
 
-    def step(self, action: EmailAction, timeout_s=None, **kwargs) -> EmailObservation:
+    def step(self, action: EmailAction, timeout_s=None, **kwargs):
         self._state.step_count += 1
 
         expected = self.current_task["expected"]
+        predicted = action.action
 
-        obs = EmailObservation(
+        # 🔥 DIRECT REWARD
+        if predicted == expected:
+            reward = 0.8
+        else:
+            reward = 0.3
+
+        return EmailObservation(
             email_text=self.current_task["input"],
-            reward=0.5,
+            reward=reward,
             done=True,
             metadata={
-                "task": str(self.current_task["name"]),
+                "task": self.current_task["name"],
                 "expected": expected,
-                "predicted": action.action
+                "predicted": predicted
             }
         )
 
-        reward = self._apply_rubric(action, obs)
-
-        if reward is None:
-            reward = 0.5
-
-        reward = float(reward)
-
-        if reward <= 0.0:
-            reward = 0.2
-        elif reward >= 1.0:
-            reward = 0.9
-
-        obs.reward = reward
-        return obs
-
     @property
-    def state(self) -> State:
+    def state(self):
         return self._state

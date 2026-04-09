@@ -8,14 +8,6 @@ port: 8000
 entry_point: server.email_env_environment:EmailEnvironment
 
 tasks:
-  - id: easy_spam_detection
-    grader:
-      type: rubric
-
-  - id: medium_classification
-    grader:
-      type: rubric
-
-  - id: hard_classification
-    grader:
-      type: rubric
+  - id: task1
+  - id: task2
+  - id: task3
